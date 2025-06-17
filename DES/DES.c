@@ -226,11 +226,6 @@ uint32_t apply_pbox(uint32_t block) {
 }
 
 uint64_t circ_shift_left_28(uint64_t value, uint8_t shift_amount) {
-
-    if(shift_amount > 2 || shift_amount < 1) {
-        fprintf(stderr, "you somehow invoked an invalid circular shift...\n");
-    }
-
     return ((value << shift_amount) | 
             ((value & 0xC000000) >> (28 - shift_amount))) & 0xFFFFFFF;
 }
@@ -249,12 +244,12 @@ void get_round_keys(uint64_t key, uint64_t round_keys[NUMROUNDS], bool encrypt) 
     }
 }
 
-uint64_t make_uint64(uint8_t bytes[8]) {
+uint64_t make_uint64(uint8_t bytes[8], bool big_endian) {
     uint64_t value = 0;
 
     for(uint8_t i = 0; i < 8; ++i) {
         value <<= 8;
-        value |= bytes[i];
+        value |= bytes[big_endian ? i : 7-i];
     }
     return value;
 }
@@ -287,12 +282,10 @@ bool encrypt(const char* filepath, uint64_t key) {
     size_t bytes_read;
     uint8_t bytes[8];
     do {
-        // NOTE: will need to track how many padding zeros were used somehow
-        //       so that decryption knows how to handle trailing zeros
         memset(bytes, 0, sizeof(bytes)); // automatic padding for encryption
         bytes_read = fread(bytes, 1, 8, infile);
 
-        uint64_t chunk = apply_iperm(make_uint64(bytes));
+        uint64_t chunk = apply_iperm(make_uint64(bytes, true));
 
         uint32_t leftblock = (uint32_t)(chunk >> BLOCKSIZE);
         uint32_t rightblock = (uint32_t)(chunk & 0xFFFFFFFF);
@@ -305,10 +298,7 @@ bool encrypt(const char* filepath, uint64_t key) {
         uint64_t preoutput = ((uint64_t)(rightblock) << BLOCKSIZE) | leftblock;
         uint64_t ciphertext = apply_fperm(preoutput);
 
-        // write as hexstring to outfile
-        // fprintf(outfile, "%016llX\n", (unsigned long long)ciphertext);
         fwrite(&ciphertext, sizeof(ciphertext), 1, outfile);
-
 
     } while(bytes_read == 8);
 
@@ -338,25 +328,28 @@ bool decrypt(const char* filepath, uint64_t key) {
 
     uint8_t bytes[8];
     size_t bytes_read;
-    do {
-        memset(bytes, 0, sizeof(bytes)); // automatically handle padding (me thinks)
-        bytes_read = fread(bytes, 1, 8, infile);
+    while ((bytes_read = fread(bytes, 1, 8, infile)) == 8) {
 
-        uint64_t chunk = apply_iperm(make_uint64(bytes));
+        uint64_t chunk = apply_iperm(make_uint64(bytes, false));
         uint32_t leftblock = (uint32_t)(chunk >> BLOCKSIZE);
         uint32_t rightblock = (uint32_t)(chunk & 0xFFFFFFFF);
 
-        for(uint8_t round = 0; round < NUMROUNDS; ++round) {
-            uint32_t tempblock = rightblock;
+        for (int round = 0; round < NUMROUNDS; ++round) {
+            uint32_t temp = rightblock;
             rightblock = leftblock ^ fiestel(rightblock, round_keys[round]);
-            leftblock = tempblock;
+            leftblock = temp;
         }
-        uint64_t preoutput = ((uint64_t)(rightblock) << BLOCKSIZE) | leftblock;
+
+        uint64_t preoutput = ((uint64_t)rightblock << BLOCKSIZE) | leftblock;
         uint64_t decrypted_block = apply_fperm(preoutput);
 
-        fwrite(&decrypted_block, sizeof(decrypted_block), 1, outfile);
+        uint8_t outbuf[8];
+        for (int i = 0; i < 8; ++i) {
+            outbuf[i] = (decrypted_block >> (8 * (7 - i))) & 0xFF;
+        }
 
-    } while(bytes_read == 8);
+        fwrite(outbuf, 1, 8, outfile);
+    }
 
     fclose(infile);
     fclose(outfile);

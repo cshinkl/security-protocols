@@ -30,7 +30,7 @@ uint32_t apply_pbox(uint32_t block);
 
 uint32_t fiestel(uint32_t rightblock, uint64_t roundkey);
 
-uint64_t make_uint64(uint8_t bytes[8]);
+uint64_t make_uint64(uint8_t bytes[8], bool big_endian);
 uint64_t circ_shift_left_28(uint64_t value, uint8_t shift_amount);
 void get_round_keys(uint64_t key, uint64_t round_keys[NUMROUNDS], bool encrypt);
 
