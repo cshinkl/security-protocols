@@ -1,11 +1,11 @@
 Implementation of DES encryption/decryption in ECB mode with PKCS#5 padding logic.
 
-command line usage: ./DES [encrypt/decrypt] [input_filepath] [key_filepath]
+command line usage: ./DES-ECB [encrypt/decrypt] [input_filepath] [key_filepath]
 
 Example:
-gcc -o DES DES.c
-./DES encrypt input.txt key.txt
-./DES decrypt encrypted.txt key.txt
+gcc -o DES-ECB DES-ECB.c
+./DES-ECB encrypt input.txt key.txt
+./DES-ECB decrypt encrypted.txt key.txt
 
 might come back to this at some point to implement threading since there is no inter-block dependencies
 

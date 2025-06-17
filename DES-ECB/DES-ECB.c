@@ -1,5 +1,5 @@
 /* DES.c - Perform DES encryption on a file */
-#include "DES.h"
+#include "DES-ECB.h"
 
 static const uint8_t IP[64] = {
     57, 49, 41, 33, 25, 17, 9, 1,
