@@ -6,3 +6,11 @@ Example:
 gcc -o DES DES.c
 ./DES encrypt input.txt key.txt
 ./DES decrypt encrypted.txt key.txt
+
+might come back to this at some point to implement threading since there is no inter-block dependencies
+
+decryption currently takes twice as long as encryption which is funky
+    - its probably just the outbuf logic though
+    - also just some caching/branch prediction stuff happening so not much to be done there
+
+currently competitive with a CPU runtime on Colab
