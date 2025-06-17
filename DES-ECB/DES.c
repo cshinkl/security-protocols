@@ -285,6 +285,17 @@ bool encrypt(const char* filepath, uint64_t key) {
         memset(bytes, 0, sizeof(bytes)); // automatic padding for encryption
         bytes_read = fread(bytes, 1, 8, infile);
 
+        // PKCS#5 padding
+        for(uint8_t i = bytes_read; i < 8; ++i) {
+            bytes[i] = (uint8_t)(8 - bytes_read);
+        }
+
+        // printf("padded chunk: ");
+        // for(int i = 0; i < 8; ++i) {
+        //     printf("%02X ", bytes[i]);
+        // }
+        // printf("\n");
+
         uint64_t chunk = apply_iperm(make_uint64(bytes, true));
 
         uint32_t leftblock = (uint32_t)(chunk >> BLOCKSIZE);
@@ -297,6 +308,7 @@ bool encrypt(const char* filepath, uint64_t key) {
         }
         uint64_t preoutput = ((uint64_t)(rightblock) << BLOCKSIZE) | leftblock;
         uint64_t ciphertext = apply_fperm(preoutput);
+        
 
         fwrite(&ciphertext, sizeof(ciphertext), 1, outfile);
 
@@ -348,7 +360,18 @@ bool decrypt(const char* filepath, uint64_t key) {
             outbuf[i] = (decrypted_block >> (8 * (7 - i))) & 0xFF;
         }
 
-        fwrite(outbuf, 1, 8, outfile);
+        uint8_t stop_idx = 8;
+        if(outbuf[7] > 0 && outbuf[7] <= 8) {
+            stop_idx -= outbuf[7];
+        }
+
+        // printf("decrypted block w/ padding stripped: ");
+        // for(int i = 0; i < stop_idx; ++i) {
+        //     printf("%02X ", outbuf[i]);
+        // }
+        // printf("\n");
+
+        fwrite(outbuf, 1, stop_idx, outfile);
     }
 
     fclose(infile);
@@ -359,7 +382,6 @@ bool decrypt(const char* filepath, uint64_t key) {
 
 int main(int argc, char* argv[]) {
 
-    // printf("argc=%d\n", argc);
     if(argc != 4) {
         fprintf(stderr, "Usage: %s <encrypt/decrypt> <input_filepath> <key_filepath>\n", argv[0]);
         return EXIT_FAILURE;
@@ -371,16 +393,22 @@ int main(int argc, char* argv[]) {
     }
 
     if(strcmp(argv[1], "encrypt") == 0) {
+        clock_t start = clock();
         if(!encrypt(argv[2], key)) {
             return EXIT_FAILURE;
         }
-        printf("encrypted successfully!");
+        clock_t end = clock();
+        double ms = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+        printf("encrypted successfully in %.3f ms!\n", ms);
     }
     else if(strcmp(argv[1], "decrypt") == 0) {
+        clock_t start = clock();
         if(!decrypt(argv[2], key)) {
             return EXIT_FAILURE;
         }
-        printf("decrypted successfully!");
+        clock_t end = clock();
+        double ms = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+        printf("decrypted successfully in %.3f ms!\n", ms);
     } else {
         fprintf(stderr, "choose either encrypt or decrypt!\n");
         return EXIT_FAILURE;

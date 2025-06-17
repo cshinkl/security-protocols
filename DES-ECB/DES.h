@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #define CHUNKSIZE 64
 #define KEYSIZE 64
