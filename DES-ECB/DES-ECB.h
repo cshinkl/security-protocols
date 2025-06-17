@@ -1,5 +1,5 @@
-#ifndef __DES_H__
-#define __DES_H__
+#ifndef __DESECB_H__
+#define __DESECB_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,4 +35,4 @@ uint64_t make_uint64(uint8_t bytes[8], bool big_endian);
 uint64_t circ_shift_left_28(uint64_t value, uint8_t shift_amount);
 void get_round_keys(uint64_t key, uint64_t round_keys[NUMROUNDS], bool encrypt);
 
-#endif /* __DES_H__ */
+#endif /* __DESECB_H__ */

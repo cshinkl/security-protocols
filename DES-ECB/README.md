@@ -1,4 +1,5 @@
 Implementation of DES encryption/decryption in ECB mode with PKCS#5 padding logic.
+Encrypted data (encrypted.txt) will be raw binary data, decrypted data (decrypted.txt) will be recovered plaintext (ASCII)
 
 command line usage: ./DES-ECB [encrypt/decrypt] [input_filepath] [key_filepath]
 
