@@ -230,6 +230,10 @@ uint64_t circ_shift_left_28(uint64_t value, uint8_t shift_amount) {
             ((value & 0xC000000) >> (28 - shift_amount))) & 0xFFFFFFF;
 }
 
+uint32_t generate_iv() {
+    return (uint32_t)(rand() % 4294967296);
+}
+
 void get_round_keys(uint64_t key, uint64_t round_keys[NUMROUNDS], bool encrypt) {
     key = apply_pc1(key);
     uint64_t leftkey = (key >> 28) & 0xFFFFFFF; 
@@ -262,6 +266,19 @@ uint32_t fiestel(uint32_t rightblock, uint64_t roundkey) {
 }
 
 bool encrypt(const char* filepath, uint64_t key) {
+    uint32_t iv = generate_iv();
+
+    FILE* infile = fopen(filepath, "rb");
+    if(infile == NULL) {
+        perror("unable to open file for encryption!\n");
+        return false;
+    }
+
+    FILE* outfile = fopen("encrypted.txt", "wb");
+    if(outfile == NULL) {
+        perror("unable to open file to store ciphertext!\n");
+        return false;
+    }
     return true;
 }
 
@@ -272,6 +289,9 @@ bool decrypt(const char* filepath, uint64_t key) {
 
 
 int main(int argc, char* argv[]) {
+
+    // for IV generation
+    srand(time(NULL));
 
     if(argc != 4) {
         fprintf(stderr, "Usage: %s <encrypt/decrypt> <input_filepath> <key_filepath>\n", argv[0]);
