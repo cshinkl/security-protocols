@@ -290,12 +290,6 @@ bool encrypt(const char* filepath, uint64_t key) {
             bytes[i] = (uint8_t)(8 - bytes_read);
         }
 
-        // printf("padded chunk: ");
-        // for(int i = 0; i < 8; ++i) {
-        //     printf("%02X ", bytes[i]);
-        // }
-        // printf("\n");
-
         uint64_t chunk = apply_iperm(make_uint64(bytes, true));
 
         uint32_t leftblock = (uint32_t)(chunk >> BLOCKSIZE);
@@ -309,7 +303,6 @@ bool encrypt(const char* filepath, uint64_t key) {
         uint64_t preoutput = ((uint64_t)(rightblock) << BLOCKSIZE) | leftblock;
         uint64_t ciphertext = apply_fperm(preoutput);
         
-
         fwrite(&ciphertext, sizeof(ciphertext), 1, outfile);
 
     } while(bytes_read == 8);
@@ -365,12 +358,6 @@ bool decrypt(const char* filepath, uint64_t key) {
             stop_idx -= outbuf[7];
         }
 
-        // printf("decrypted block w/ padding stripped: ");
-        // for(int i = 0; i < stop_idx; ++i) {
-        //     printf("%02X ", outbuf[i]);
-        // }
-        // printf("\n");
-
         fwrite(outbuf, 1, stop_idx, outfile);
     }
 
@@ -379,6 +366,7 @@ bool decrypt(const char* filepath, uint64_t key) {
 
     return true;
 }
+
 
 int main(int argc, char* argv[]) {
 

@@ -29,7 +29,7 @@ uint64_t apply_expansion(uint32_t block);
 uint32_t apply_sboxes(uint64_t expanded_block);
 uint32_t apply_pbox(uint32_t block);
 
-uint32_t generate_iv();
+uint64_t generate_iv();
 uint32_t fiestel(uint32_t rightblock, uint64_t roundkey);
 
 uint64_t make_uint64(uint8_t bytes[8], bool big_endian);

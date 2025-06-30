@@ -230,8 +230,10 @@ uint64_t circ_shift_left_28(uint64_t value, uint8_t shift_amount) {
             ((value & 0xC000000) >> (28 - shift_amount))) & 0xFFFFFFF;
 }
 
-uint32_t generate_iv() {
-    return (uint32_t)(rand() % 4294967296);
+uint64_t generate_iv() {
+    // less than ideal cryptographically
+    // good enough for now
+    return ((uint32_t)(rand() << 16)) | ((uint32_t)(rand() & 0xFFFF));
 }
 
 void get_round_keys(uint64_t key, uint64_t round_keys[NUMROUNDS], bool encrypt) {
@@ -266,7 +268,7 @@ uint32_t fiestel(uint32_t rightblock, uint64_t roundkey) {
 }
 
 bool encrypt(const char* filepath, uint64_t key) {
-    uint32_t iv = generate_iv();
+    uint64_t iv = generate_iv();
 
     FILE* infile = fopen(filepath, "rb");
     if(infile == NULL) {
@@ -279,13 +281,133 @@ bool encrypt(const char* filepath, uint64_t key) {
         perror("unable to open file to store ciphertext!\n");
         return false;
     }
+    
+    // write IV as plaintext at start of outfile
+    fwrite(&iv, sizeof(iv), 1, outfile);
+
+    uint64_t round_keys[NUMROUNDS];
+    get_round_keys(key, round_keys, true);
+
+    size_t bytes_read;
+    size_t chunks_encrypted = 0;
+    uint8_t bytes[8];
+    uint64_t ciphertext = 0;
+    do {
+        memset(bytes, 0, sizeof(bytes)); // automatic padding for encryption
+        bytes_read = fread(bytes, 1, 8, infile);
+
+        // PKCS#5 padding
+        for(uint8_t i = bytes_read; i < 8; ++i) {
+            bytes[i] = (uint8_t)(8 - bytes_read);
+        }
+
+        printf("padded chunk: ");
+        for(int i = 0; i < 8; ++i) {
+            printf("%02X ", bytes[i]);
+        }
+        printf("\n");
+        uint64_t chunk = make_uint64(bytes, true);
+
+        if(chunks_encrypted == 0) {
+            chunk ^= iv;
+        } else {
+            chunk ^= ciphertext;
+        }
+        chunk = apply_iperm(chunk);
+
+        uint32_t leftblock = (uint32_t)(chunk >> BLOCKSIZE);
+        uint32_t rightblock = (uint32_t)(chunk & 0xFFFFFFFF);
+
+        for(uint8_t round = 0; round < NUMROUNDS; ++round) {
+            uint32_t tempblock = rightblock;
+            rightblock = leftblock ^ fiestel(rightblock, round_keys[round]);
+            leftblock = tempblock;
+        }
+        uint64_t preoutput = ((uint64_t)(rightblock) << BLOCKSIZE) | leftblock;
+        ciphertext = apply_fperm(preoutput);
+
+        fwrite(&ciphertext, sizeof(ciphertext), 1, outfile);
+        ++chunks_encrypted;
+    } while(bytes_read == 8);
+
+    fclose(infile);
+    fclose(outfile);
+
     return true;
 }
 
 bool decrypt(const char* filepath, uint64_t key) {
+    // open file to decrypt
+    FILE* infile = fopen(filepath, "rb");
+    if(infile == NULL) {
+        perror("unable to open file to decrypt!\n");
+        return false;
+    }
+
+    FILE* outfile = fopen("decrypted.txt", "wb");
+    if(outfile == NULL) {
+        perror("unable to open file to store ciphertext!\n");
+        return false;
+    }
+    
+    // fetch IV from encrypted file
+    uint64_t iv;
+    size_t iv_read = fread(&iv, 8, 1, infile);
+    if(iv_read < 1) {
+        perror("issue fetching IV from encrypted file!");
+        return false;
+    }
+    printf("IV: %016llX\n", (unsigned long long)iv);
+
+    // generate round keys
+    uint64_t round_keys[NUMROUNDS];
+    get_round_keys(key, round_keys, false);
+
+    uint8_t bytes[8];
+    size_t bytes_read;
+    size_t chunks_decrypted = 0;
+    uint64_t xor_val;
+    while ((bytes_read = fread(bytes, 1, 8, infile)) == 8) {
+
+        uint64_t chunk = make_uint64(bytes, false);
+        if(chunks_decrypted == 0) {
+            xor_val = iv;
+        } else {
+            xor_val = chunk;
+        }
+        chunk = apply_iperm(chunk);
+
+        uint32_t leftblock = (uint32_t)(chunk >> BLOCKSIZE);
+        uint32_t rightblock = (uint32_t)(chunk & 0xFFFFFFFF);
+
+        for (int round = 0; round < NUMROUNDS; ++round) {
+            uint32_t temp = rightblock;
+            rightblock = leftblock ^ fiestel(rightblock, round_keys[round]);
+            leftblock = temp;
+        }
+
+        uint64_t preoutput = ((uint64_t)rightblock << BLOCKSIZE) | leftblock;
+        uint64_t decrypted_block = apply_fperm(preoutput) ^ xor_val;
+
+        uint8_t outbuf[8];
+        for (int i = 0; i < 8; ++i) {
+            outbuf[i] = (decrypted_block >> (8 * (7 - i))) & 0xFF;
+        }
+
+        uint8_t stop_idx = 8;
+        if(outbuf[7] > 0 && outbuf[7] <= 8) {
+            stop_idx -= outbuf[7];
+        }
+
+        fwrite(outbuf, 1, stop_idx, outfile);
+        ++chunks_decrypted;
+    }
+
+    fclose(infile);
+    fclose(outfile);
+
     return true;
 }
-
 
 
 int main(int argc, char* argv[]) {
