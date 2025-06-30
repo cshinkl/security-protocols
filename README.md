@@ -1,0 +1,1 @@
+This repository is a collection of various cryptographic/reliability related algorithms that I have implemented. Main purpose is to practice C programming, get more experience working through algorithms, and learn how to optimize code myself.

@@ -7,6 +7,7 @@ int main(int argc, char* argv[]) {
         perror("could not allocate table!\n");
         return EXIT_FAILURE;
     }
+    printf("table generated successfully!\n");
 
     free(table);
     return EXIT_SUCCESS;
