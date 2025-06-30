@@ -130,13 +130,13 @@ static const uint8_t PC2[48] = {
 
 // reads first 64 bits from keyfile to use as encryption key
 bool read_key(const char* filepath, uint64_t* keybuffer) {
-    FILE* fp = fopen(filepath, "r");
+    FILE* fp = fopen(filepath, "rb");
     if(fp == NULL) {
         perror("Unable to open key file!");
         return false;
     }
 
-    if(fscanf(fp, "%" SCNx64, keybuffer) != 1) {
+    if(fread(keybuffer, sizeof(*keybuffer), 1, fp) != 1) {
         perror("Failed to read 64-bit value from key file!");
         fclose(fp);
         return false;

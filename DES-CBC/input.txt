@@ -1,1 +1,1 @@
-ABCDEF
+sample input text
