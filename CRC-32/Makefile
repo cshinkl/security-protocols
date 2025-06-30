@@ -8,4 +8,4 @@ all:
 	./$(EXEC) input.txt
 
 clean:
-	rm -f *.o *.exe
+	rm -f $(EXEC).exe CRC-32.txt
