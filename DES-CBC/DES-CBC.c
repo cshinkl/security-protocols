@@ -233,7 +233,10 @@ uint64_t circ_shift_left_28(uint64_t value, uint8_t shift_amount) {
 uint64_t generate_iv() {
     // less than ideal cryptographically
     // good enough for now
-    return ((uint32_t)(rand() << 16)) | ((uint32_t)(rand() & 0xFFFF));
+    return ((uint64_t)(rand() & 0xFFFF) << 48) | 
+           ((uint64_t)(rand() & 0xFFFF) << 32) |
+           ((uint64_t)(rand() & 0xFFFF) << 16) |
+           ((uint64_t)(rand() & 0xFFFF));
 }
 
 void get_round_keys(uint64_t key, uint64_t round_keys[NUMROUNDS], bool encrypt) {
@@ -301,11 +304,6 @@ bool encrypt(const char* filepath, uint64_t key) {
             bytes[i] = (uint8_t)(8 - bytes_read);
         }
 
-        printf("padded chunk: ");
-        for(int i = 0; i < 8; ++i) {
-            printf("%02X ", bytes[i]);
-        }
-        printf("\n");
         uint64_t chunk = make_uint64(bytes, true);
 
         if(chunks_encrypted == 0) {
@@ -357,7 +355,6 @@ bool decrypt(const char* filepath, uint64_t key) {
         perror("issue fetching IV from encrypted file!");
         return false;
     }
-    printf("IV: %016llX\n", (unsigned long long)iv);
 
     // generate round keys
     uint64_t round_keys[NUMROUNDS];
@@ -366,15 +363,11 @@ bool decrypt(const char* filepath, uint64_t key) {
     uint8_t bytes[8];
     size_t bytes_read;
     size_t chunks_decrypted = 0;
-    uint64_t xor_val;
+    uint64_t xor_val = iv;
     while ((bytes_read = fread(bytes, 1, 8, infile)) == 8) {
 
         uint64_t chunk = make_uint64(bytes, false);
-        if(chunks_decrypted == 0) {
-            xor_val = iv;
-        } else {
-            xor_val = chunk;
-        }
+        uint64_t last_chunk = chunk;
         chunk = apply_iperm(chunk);
 
         uint32_t leftblock = (uint32_t)(chunk >> BLOCKSIZE);
@@ -400,6 +393,7 @@ bool decrypt(const char* filepath, uint64_t key) {
         }
 
         fwrite(outbuf, 1, stop_idx, outfile);
+        xor_val = last_chunk;
         ++chunks_decrypted;
     }
 
